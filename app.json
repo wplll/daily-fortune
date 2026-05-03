@@ -24,7 +24,23 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "31e55dc2-bacd-44b6-aeee-71372f5636af"
+      }
+    }
   }
 }

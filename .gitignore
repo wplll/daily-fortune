@@ -1,5 +1,7 @@
 node_modules/
 .expo/
+.tmp/
+.npm-cache/
 dist/
 *.jks
 *.p8
