@@ -1,130 +1,75 @@
-import { AIAnalyzeRequest, AIAnalyzeResponse, AITestRequest, AppError } from '../types/fortune';
+import { useSettingsStore } from '../store/settingsStore';
+import { AIModelSettings } from '../types/settings';
+import { FortuneType, AppError } from '../types/fortune';
+import { createChatCompletion, testDeepSeekConnection } from './deepseekClient';
 
-const TIMEOUT_MS = 30_000;
+export interface AnalyzeFortuneRequest {
+  type: FortuneType;
+  date: string;
+  result: unknown;
+  userProfile?: {
+    name?: string;
+    zodiacSign?: string;
+    birthDate?: string;
+  };
+}
 
-function getApiBase(): string {
-  try {
-    const { useAISettingsStore } = require('../store/aiSettingsStore');
-    return useAISettingsStore.getState().backendSettings.apiBaseURL;
-  } catch {
-    return 'http://localhost:3001';
+export interface AnalyzeFortuneResponse {
+  analysis: string;
+}
+
+function requireAISettings(settings: AIModelSettings): void {
+  if (!settings.enabled) {
+    throw new AppError('AI_DISABLED', 'AI 解读功能未启用，请在设置页开启');
+  }
+  if (!settings.apiKey.trim()) {
+    throw new AppError('NO_API_KEY', '请先在设置页填写 API Key');
+  }
+  if (!settings.baseURL.trim()) {
+    throw new AppError('NO_BASE_URL', '请检查 API Base URL');
+  }
+  if (!settings.model.trim()) {
+    throw new AppError('NO_MODEL', '模型不存在或不可用，请检查模型名称');
   }
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new AppError('TIMEOUT', '请求超时，网络较慢，请稍后重试');
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
+function getTypeName(type: FortuneType): string {
+  const names: Record<FortuneType, string> = {
+    tarot: '塔罗',
+    iching: '卦象',
+    zodiac: '星座',
+    almanac: '黄历',
+    summary: '综合运势',
+  };
+  return names[type];
 }
 
-function mapNetworkError(err: unknown): AppError {
-  if (err instanceof AppError) return err;
-
-  const message = err instanceof Error ? err.message : String(err);
-
-  if (message.includes('Network request failed') || message.includes('Failed to fetch') || message.includes('TypeError')) {
-    return new AppError(
-      'NETWORK_ERROR',
-      '无法连接到后端服务，请检查后端服务是否已启动',
-      message,
-    );
-  }
-
-  if (message.includes('abort') || message.includes('AbortError') || message.includes('timeout')) {
-    return new AppError('TIMEOUT', '请求超时，网络较慢，请稍后重试');
-  }
-
-  return new AppError('UNKNOWN', `请求失败: ${message}`, message);
+function buildPrompt(request: AnalyzeFortuneRequest): string {
+  const profile = request.userProfile;
+  return [
+    `请基于下面的${getTypeName(request.type)}结果，生成一段中文每日运势解读。`,
+    `日期：${request.date}`,
+    profile?.name ? `用户昵称：${profile.name}` : undefined,
+    profile?.zodiacSign ? `用户星座：${profile.zodiacSign}` : undefined,
+    profile?.birthDate ? `出生日期：${profile.birthDate}` : undefined,
+    '要求：用温和、理性、可执行的语气，避免绝对预测；包含象征意义、今日提醒和行动建议。',
+    `结果数据：${JSON.stringify(request.result, null, 2)}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 export async function analyzeFortune(
-  request: AIAnalyzeRequest
-): Promise<AIAnalyzeResponse> {
-  if (!request.aiSettings.enabled) {
-    throw new AppError('AI_DISABLED', 'AI 解读功能未启用，请在设置中开启');
-  }
+  request: AnalyzeFortuneRequest,
+): Promise<AnalyzeFortuneResponse> {
+  const settings = useSettingsStore.getState().aiSettings;
+  requireAISettings(settings);
 
-  if (!request.aiSettings.apiKey) {
-    throw new AppError('NO_API_KEY', '请先在设置页配置 API Key');
-  }
-
-  const apiBase = getApiBase();
-
-  try {
-    const response = await fetchWithTimeout(
-      `${apiBase}/api/analyze-fortune`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      },
-      TIMEOUT_MS,
-    );
-
-    const json = await response.json();
-
-    if (!response.ok) {
-      const errMsg = json?.error?.message || json?.error || `服务器错误 (${response.status})`;
-      throw new AppError(
-        'API_ERROR',
-        typeof errMsg === 'string' ? errMsg : 'AI 服务返回了错误',
-        JSON.stringify(json),
-      );
-    }
-
-    // Support both response formats: { ok: true, data: { analysis } } and { analysis }
-    const analysis = json?.data?.analysis || json?.analysis;
-    if (!analysis) {
-      throw new AppError('EMPTY_RESPONSE', 'AI 返回了空结果，请稍后重试');
-    }
-
-    return { analysis, model: json?.model || json?.data?.model };
-  } catch (err: unknown) {
-    throw mapNetworkError(err);
-  }
+  const analysis = await createChatCompletion(settings, buildPrompt(request));
+  return { analysis };
 }
 
-export async function testAIConnection(request: AITestRequest): Promise<string> {
-  if (!request.apiKey) {
-    throw new AppError('NO_API_KEY', '请先填写 API Key');
-  }
-
-  const apiBase = getApiBase();
-
-  try {
-    const response = await fetchWithTimeout(
-      `${apiBase}/api/test-ai`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      },
-      TIMEOUT_MS,
-    );
-
-    const json = await response.json();
-
-    if (!response.ok) {
-      const errMsg = json?.error?.message || json?.error || `连接测试失败 (${response.status})`;
-      throw new AppError('TEST_FAILED', typeof errMsg === 'string' ? errMsg : '连接测试失败');
-    }
-
-    return json?.data?.message || json?.message || '连接成功';
-  } catch (err: unknown) {
-    throw mapNetworkError(err);
-  }
+export async function testAIConnection(settings: AIModelSettings): Promise<boolean> {
+  requireAISettings({ ...settings, enabled: true });
+  return testDeepSeekConnection(settings);
 }

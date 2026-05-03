@@ -1,18 +1,15 @@
-import { create } from 'zustand';
-import { AlmanacApiSettings, DEFAULT_ALMANAC_SETTINGS } from '../types/fortune';
+import { useSettingsStore } from './settingsStore';
+import { AlmanacApiSettings } from '../types/settings';
 
 interface AlmanacSettingsState {
+  almanacSettings: AlmanacApiSettings;
+  setAlmanacSettings: (settings: Partial<AlmanacApiSettings>) => void;
+  resetSettings: () => void;
   settings: AlmanacApiSettings;
   setSettings: (settings: Partial<AlmanacApiSettings>) => void;
-  resetSettings: () => void;
 }
 
-export const useAlmanacSettingsStore = create<AlmanacSettingsState>((set) => ({
-  settings: { ...DEFAULT_ALMANAC_SETTINGS },
-  setSettings: (pat) =>
-    set((state) => ({
-      settings: { ...state.settings, ...pat },
-    })),
-  resetSettings: () =>
-    set({ settings: { ...DEFAULT_ALMANAC_SETTINGS } }),
-}));
+export const useAlmanacSettingsStore = useSettingsStore as unknown as {
+  <T>(selector: (state: AlmanacSettingsState) => T): T;
+  getState: () => AlmanacSettingsState;
+};

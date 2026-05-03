@@ -1,10 +1,15 @@
-import React, { useRef, useCallback, useState } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, Text } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { ActionButton } from './ActionButton';
-import { captureView, shareImage, saveImageToAlbum, shareToWechat, shareToQQ } from '../services/shareService';
+import { captureView, saveImageToAlbum, shareImage, shareToQQ, shareToWechat } from '../services/shareService';
+import { AppError } from '../utils/AppError';
 
 interface ShareActionsProps {
   shareCard: React.ReactElement;
+}
+
+function showOperationError(title: string, error: unknown): void {
+  Alert.alert(title, error instanceof AppError ? error.userMessage : '操作失败，请稍后重试');
 }
 
 export function ShareActions({ shareCard }: ShareActionsProps) {
@@ -16,14 +21,13 @@ export function ShareActions({ shareCard }: ShareActionsProps) {
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     setShowPreview(true);
-    // Wait for the view to be laid out on screen
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     try {
       const uri = await captureView(viewRef);
       setImageUri(uri);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '生成图片失败';
-      Alert.alert('分享图生成失败', msg);
+    } catch (error: unknown) {
+      showOperationError('分享图生成失败', error);
     } finally {
       setGenerating(false);
       setShowPreview(false);
@@ -31,32 +35,33 @@ export function ShareActions({ shareCard }: ShareActionsProps) {
   }, []);
 
   const handleSystemShare = useCallback(async () => {
-    if (imageUri) {
+    if (!imageUri) return;
+    try {
       await shareImage(imageUri);
+    } catch (error: unknown) {
+      showOperationError('分享失败', error);
     }
   }, [imageUri]);
 
   const handleSaveToAlbum = useCallback(async () => {
-    if (imageUri) {
+    if (!imageUri) return;
+    try {
       await saveImageToAlbum(imageUri);
+    } catch (error: unknown) {
+      showOperationError('保存失败', error);
     }
   }, [imageUri]);
 
   const handleWechat = useCallback(async () => {
-    if (imageUri) {
-      await shareToWechat(imageUri);
-    }
+    if (imageUri) await shareToWechat(imageUri);
   }, [imageUri]);
 
   const handleQQ = useCallback(async () => {
-    if (imageUri) {
-      await shareToQQ(imageUri);
-    }
+    if (imageUri) await shareToQQ(imageUri);
   }, [imageUri]);
 
   return (
     <View style={styles.container}>
-      {/* Render capture target on-screen (needed for view-shot to work) */}
       {showPreview && (
         <View style={styles.captureOverlay}>
           <View style={styles.captureWrapper}>
@@ -81,7 +86,7 @@ export function ShareActions({ shareCard }: ShareActionsProps) {
           <ActionButton title="系统分享" onPress={handleSystemShare} icon="📤" variant="secondary" />
           <ActionButton title="保存图片" onPress={handleSaveToAlbum} icon="💾" variant="secondary" />
           <ActionButton title="微信" onPress={handleWechat} icon="💬" variant="secondary" />
-          <ActionButton title="QQ" onPress={handleQQ} icon="🐧" variant="secondary" />
+          <ActionButton title="QQ" onPress={handleQQ} icon="💬" variant="secondary" />
         </View>
       )}
     </View>
@@ -103,7 +108,7 @@ const styles = StyleSheet.create({
   },
   captureWrapper: {
     backgroundColor: '#12122a',
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',

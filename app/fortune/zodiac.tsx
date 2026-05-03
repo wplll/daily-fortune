@@ -98,7 +98,6 @@ export default function ZodiacScreen() {
           birthDate: userProfile.birthDate,
           name: userProfile.name || '用户',
         },
-        aiSettings,
       });
       setAiAnalysis(response.analysis);
       await saveAICache('zodiac', `${d}_${selectedSign}`, response.analysis);

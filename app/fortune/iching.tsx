@@ -107,7 +107,6 @@ export default function IChingScreen() {
           birthDate: profile.birthDate,
           name: profile.name || '用户',
         },
-        aiSettings,
       });
       setAiAnalysis(response.analysis);
       await saveAICache('iching', d, response.analysis);

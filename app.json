@@ -19,7 +19,10 @@
       "adaptiveIcon": {
         "backgroundColor": "#1a1a2e"
       },
-      "package": "com.dailyfortune.app"
+      "package": "com.dailyfortune.app",
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "plugins": [
       "expo-router",

@@ -6,12 +6,14 @@ import { generateZodiacResult } from '../data/zodiacData';
 import { today } from '../utils/date';
 import { dateSeed, createSeededRandom, seededPick, seededInt } from '../utils/random';
 
+export function generateAlmanac(date?: string): { type: 'almanac'; data: AlmanacResult };
 export function generateAlmanac(date?: string): FortuneResult {
   const d = date ?? today();
   const data: AlmanacResult = generateAlmanacResult(d);
   return { type: 'almanac', data };
 }
 
+export function generateIChing(date?: string, randomDraw?: boolean): { type: 'iching'; data: IChingResult };
 export function generateIChing(date?: string, randomDraw = false): FortuneResult {
   const d = date ?? today();
   const seed = randomDraw ? Date.now() : dateSeed(d);
@@ -21,6 +23,7 @@ export function generateIChing(date?: string, randomDraw = false): FortuneResult
   return { type: 'iching', data };
 }
 
+export function generateTarot(date?: string, question?: string): { type: 'tarot'; data: TarotResult };
 export function generateTarot(date?: string, question = ''): FortuneResult {
   const d = date ?? today();
   const hashInput = question.trim() ? `${d}_${question.trim()}` : `${d}_tarot`;
@@ -32,11 +35,13 @@ export function generateTarot(date?: string, question = ''): FortuneResult {
   return { type: 'tarot', data };
 }
 
+export function generateZodiac(date: string, sign: string): { type: 'zodiac'; data: ZodiacResult };
 export function generateZodiac(date: string, sign: string): FortuneResult {
   const data: ZodiacResult = generateZodiacResult(date, sign as ZodiacSign);
   return { type: 'zodiac', data };
 }
 
+export function generateSummary(date?: string): { type: 'summary'; data: SummaryResult };
 export function generateSummary(date?: string): FortuneResult {
   const d = date ?? today();
   const seed = dateSeed(d + '_summary');

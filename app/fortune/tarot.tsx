@@ -135,7 +135,6 @@ export default function TarotScreen() {
           birthDate: profile.birthDate,
           name: profile.name || '用户',
         },
-        aiSettings,
       });
       setAiAnalysis(response.analysis);
 

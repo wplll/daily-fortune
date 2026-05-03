@@ -109,7 +109,6 @@ export default function AlmanacScreen() {
           birthDate: profile.birthDate,
           name: profile.name || '用户',
         },
-        aiSettings,
       });
       setAiAnalysis(response.analysis);
       await saveAICache('almanac', d, response.analysis);
@@ -139,7 +138,7 @@ export default function AlmanacScreen() {
   }
 
   const isFromAPI = data.source === 'api';
-  const sourceLabel = almanacSettings.provider === 'apihz' ? 'apihz.cn' : data.source;
+  const sourceLabel = data.source === 'api' ? '真实 API' : '本地 fallback';
 
   const shareHighlights = [
     { label: '农历', value: data.lunarDate },
